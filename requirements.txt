@@ -1,4 +1,5 @@
-# lighteval
+lm-eval
 evaluate
 datasets==3.6.0
 matplotlib
+alpaca-eval
