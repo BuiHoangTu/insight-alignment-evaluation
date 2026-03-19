@@ -1,0 +1,3 @@
+# lighteval
+evaluate
+datasets==3.6.0
