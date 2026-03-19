@@ -89,7 +89,7 @@ def summarize_default_metrics(
     )
 
     if metrics:
-        metrics.update(summary)
+        metrics.update(summary) # type: ignore
     return summary
 
 

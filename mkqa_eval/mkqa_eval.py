@@ -9,7 +9,7 @@ from typing import Dict, Optional, Any
 
 import numpy as np
 
-import mkqa_eval_util as eval_util
+from mkqa_eval import mkqa_eval_util as eval_util
 
 MKQA_LANGUAGES = [
     "ar",
@@ -189,7 +189,7 @@ def compute_mkqa_scores_for_language(
     predictions: Dict[str, MKQAPrediction],
     gold_annotations: Dict[str, MKQAAnnotation],
     language: str,
-) -> (Dict[str, float], Dict[str, float]):
+) -> tuple[Dict[str, float], Dict[str, float]]:
     """
     Compute Exact Match and token overlap F1 scores per answer, similar to SQuAD
 
@@ -272,7 +272,7 @@ def compute_best_threshold(
             100.0 * np.mean(list(best_unanswerable_em_by_id.values())), 2
         ),
         "best_f1_threshold": round(f1_threshold, 2),
-    }
+    } # type: ignore
 
 
 def evaluate(
@@ -343,7 +343,7 @@ def evaluate(
             raw_em_scores, raw_f1_scores, qid_is_answerable, metrics,
         )
 
-        metrics.update(default_metrics)
+        metrics.update(default_metrics) # type: ignore
 
     if print_metrics:
         print(json.dumps(metrics, indent=4))

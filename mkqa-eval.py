@@ -1,100 +1,115 @@
-import json
-from datasets import load_dataset
-from transformers import AutoModelForCausalLM, AutoTokenizer
+# run_eval_hf.py
+import collections
+import logging
+
 import torch
-import re
-from collections import Counter
+from tqdm import tqdm
+from datasets import load_dataset
 
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
-# -----------------------------
-# 1. Utilities for EM & F1
-# -----------------------------
-def normalize_answer(s):
-    """Lower text, remove punctuation/articles/extra whitespace."""
-    s = s.lower()
-    s = re.sub(r"\b(a|an|the)\b", " ", s)
-    s = re.sub(r"[^a-z0-9\s]", "", s)
-    s = re.sub(r"\s+", " ", s).strip()
-    return s
+from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 
+# ----------------------------
+# Configuration
+# ----------------------------
+MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
+LANGS = ["en", "es", "de", "fr", "ar"]
+MAX_TOKENS = 50
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-def f1_score(prediction, ground_truth):
-    pred_tokens = normalize_answer(prediction).split()
-    gold_tokens = normalize_answer(ground_truth).split()
-    common = Counter(pred_tokens) & Counter(gold_tokens)
-    num_same = sum(common.values())
-    if num_same == 0:
-        return 0
-    precision = num_same / len(pred_tokens)
-    recall = num_same / len(gold_tokens)
-    return 2 * precision * recall / (precision + recall)
-
-
-def exact_match_score(prediction, ground_truth):
-    return int(normalize_answer(prediction) == normalize_answer(ground_truth))
-
-
-# -----------------------------
-# 2. Load MKQA dataset (subset)
-# -----------------------------
-mkqa = load_dataset("apple/mkqa", trust_remote_code=True)
-
-# Pick 3 languages: English, French, German
-languages = ["en", "fr", "de"]
-
-# -----------------------------
-# 3. Load HF decoder-only model
-# -----------------------------
-model_name = "../llama3_8b_lacomsa/checkpoint-94/"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
+# ----------------------------
+# Load model & tokenizer
+# ----------------------------
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).to(DEVICE)
 model.eval()
-device = "cuda" if torch.cuda.is_available() else "cpu"
-model.to(device)
+
+# ----------------------------
+# Load MKQA dataset from Hugging Face
+# ----------------------------
+dataset = load_dataset("mkqa", trust_remote_code=True)
+print("MKQA dataset loaded:", dataset)
 
 
-# -----------------------------
-# 4. Generate predictions
-# -----------------------------
-def generate_answer(question, max_length=64):
-    inputs = tokenizer(question, return_tensors="pt").to(device)
+# ----------------------------
+# Helper functions, derive from mkqa_eval.mkqa_eval
+# ----------------------------
+def prepare_gold_annotations(dataset_split, lang):
+    annotations = {}
+    for example in dataset_split:
+        valid_answers, answer_types = [], []
+        for ans in example["answers"][lang]:
+            valid_answers.append(ans["text"] or "")
+            valid_answers.extend(ans.get("aliases", []))
+            answer_types.append(ans["type"])
+
+        annotation = MKQAAnnotation(
+            example_id=str(example["example_id"]),
+            types=list(set(answer_types)),
+            answers=list(set(valid_answers)),
+        )
+
+        annotations[annotation.example_id] = annotation
+
+    if len(annotations) != 10000:
+            logging.warning(
+                f"The annotations file you've provided contains {len(annotations)} for language {lang} examples, where 10000 are expected."
+            )
+    return annotations
+
+
+def generate_prediction(prompt):
+    inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_length=max_length, do_sample=False)
-    return tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=MAX_TOKENS,
+            do_sample=False,
+        )
+    pred_text = tokenizer.decode(
+        outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
+    )
+    return pred_text.strip()
 
 
-# -----------------------------
-# 5. Evaluate per language
-# -----------------------------
-results = {}
+def prepare_predictions(dataset_split, lang):
+    predictions = {}
+    for example in tqdm(dataset_split, desc=f"Generating predictions ({lang})"):
+        # Use the actual MKQA question text
+        prompt = f"Question ({lang}): {example['queries'][lang]} "
+        pred_text = generate_prediction(prompt)
+        predictions[str(example["example_id"])] = MKQAPrediction(
+            example_id=str(example["example_id"]),
+            prediction=pred_text,
+            binary_answer=None,
+            no_answer_prob=0.0,
+        )
+    return predictions
 
-for lang in languages:
-    em_scores = []
-    f1_scores = []
-    queries = mkqa["test"]["queries"][lang]
-    answers_list = mkqa["test"]["answers"][
-        lang
-    ]  # list of lists (multiple correct answers)
 
-    for i, question in enumerate(queries):
-        pred = generate_answer(question)
-        # For multiple references, take max score
-        em = max([exact_match_score(pred, ref) for ref in answers_list[i]])
-        f1 = max([f1_score(pred, ref) for ref in answers_list[i]])
-        em_scores.append(em)
-        f1_scores.append(f1)
+# ----------------------------
+# Main evaluation loop
+# ----------------------------
+all_metrics = {}
+for lang in LANGS:
+    print(f"\nEvaluating language: {lang.upper()}")
+    dataset_split = dataset["train"]
+    gold_annotations = prepare_gold_annotations(dataset_split, lang)
+    predictions = prepare_predictions(dataset_split, lang)
 
-        if i < 3:  # print first few examples
-            print(f"Lang={lang} | Q: {question} | P: {pred} | EM={em} | F1={f1:.2f}")
+    metrics = evaluate(
+        annotations=gold_annotations,
+        predictions=predictions,
+        language=lang,
+        out_dir=f"results/{lang}",
+        verbose=False,
+        print_metrics=True,
+    )
+    all_metrics[lang] = metrics
 
-    results[lang] = {
-        "EM": sum(em_scores) / len(em_scores),
-        "F1": sum(f1_scores) / len(f1_scores),
-    }
-
-# -----------------------------
-# 6. Print metrics
-# -----------------------------
-print("\n=== MKQA Evaluation Results ===")
-for lang, metrics in results.items():
-    print(f"{lang} -> EM: {metrics['EM']*100:.2f}%, F1: {metrics['F1']*100:.2f}%")
+# Macro-average across languages
+macro_em = sum(m["best_em"] for m in all_metrics.values()) / len(LANGS)
+macro_f1 = sum(m["best_f1"] for m in all_metrics.values()) / len(LANGS)
+print(f"\n=== Macro-Average MKQA ===")
+print(f"Macro EM: {macro_em:.2f}, Macro F1: {macro_f1:.2f}")
