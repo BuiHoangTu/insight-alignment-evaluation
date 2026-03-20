@@ -1,6 +1,6 @@
+import json
 import os
 import subprocess
-import csv
 import tempfile
 from datasets import load_dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM
@@ -9,9 +9,11 @@ DEFAULT_MODEL_PATH = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_LANGS = ["english", "spanish", "amharic"]
 DEFAULT_MAX_NEW_TOKENS = 128
 DEFAULT_TEMP = 0.0
-ROUGE_SCRIPT_PATH = "./multilingual_rouge_scoring"
-DEFAULT_OUTPUT_CSV = "results/results-xlsum.csv"
+DEFAULT_OUTPUT = "results/results-xlsum.json"
 DEFAULT_DEBUG_MAX_EXAMPLES = 5
+
+ROUGE_SCRIPT_PATH = "./multilingual_rouge_scoring"
+
 
 def main(args):
     # Load model
@@ -91,9 +93,7 @@ def main(args):
 
     # Save results
     with open(args.output_path, "w", newline="", encoding="utf-8") as f_out:
-        writer = csv.writer(f_out)
-        writer.writerow(["language", "ROUGE-L_F"])
-        writer.writerows(results)
+        json.dump(results, f_out)
 
     print(f"Evaluation complete! Results saved to {args.output_path}")
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument("--langs", nargs="+", default=DEFAULT_LANGS, help="Languages to evaluate")
     parser.add_argument("--max_new_tokens", type=int, default=DEFAULT_MAX_NEW_TOKENS, help="Max new tokens")
     parser.add_argument("--temp", type=float, default=DEFAULT_TEMP, help="Temperature")
-    parser.add_argument("--output_path", type=str, default=DEFAULT_OUTPUT_CSV, help="Output CSV path")
+    parser.add_argument("--output_path", type=str, default=DEFAULT_OUTPUT, help="Output JSON path")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode with fewer examples")
     parser.add_argument("--max_examples", type=int, default=DEFAULT_DEBUG_MAX_EXAMPLES, help="Max examples per lang in debug mode")
 

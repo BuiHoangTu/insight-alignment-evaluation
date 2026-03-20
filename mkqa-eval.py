@@ -1,5 +1,4 @@
-# run_eval_hf.py
-import collections
+import json
 import logging
 
 import torch
@@ -13,6 +12,8 @@ from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_LANGS = ["en", "es", "de", "fr", "ar"]
 DEFAULT_MAX_TOKENS = 50
+DEFAULT_OUTPUT = "results/results-mkqa.json"
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 10
 
@@ -105,6 +106,10 @@ def main(args):
         )
         all_metrics[lang] = metrics
 
+    # save result
+    with open(args.output, "w") as f:
+        json.dump(all_metrics, f, indent=2)
+
     # Macro-average across languages
     macro_em = sum(m["best_em"] for m in all_metrics.values()) / len(args.langs)
     macro_f1 = sum(m["best_f1"] for m in all_metrics.values()) / len(args.langs)
@@ -120,6 +125,7 @@ if __name__ == "__main__":
     parser.add_argument("--langs", nargs="+", default=DEFAULT_LANGS, help="Languages to evaluate")
     parser.add_argument("--max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Max new tokens")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode with fewer examples")
+    parser.add_argument("--output", type=str, default=DEFAULT_OUTPUT, help="Output file for results")
 
     args = parser.parse_args()
 

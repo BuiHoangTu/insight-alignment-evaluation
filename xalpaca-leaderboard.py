@@ -1,3 +1,5 @@
+import json
+
 from alpaca_eval.evaluator import Evaluator
 from alpaca_eval.model import HuggingFaceModel
 from datasets import load_dataset
@@ -5,6 +7,7 @@ from datasets import load_dataset
 DEFAULT_MODEL_O_NAME = "princeton-nlp/Llama-3-Base-8B-SFT-DPO"
 DEFAULT_MODEL_X_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_NUM_PROMPTS = 100
+DEFAULT_OUTPUT = "results/results-xalpaca.json"
 
 DATASET_NAME = "viyer98/m-AlpacaEval"
 SPLIT = "test"
@@ -31,6 +34,11 @@ def main(args):
 
     # RUN EVALUATION
     results = evaluator.evaluate()
+    
+    # save results
+    with open(args.output, "w") as f:
+        json.dump(results, f, indent=2)
+    
     print("Evaluation results:", results)
 
 if __name__ == "__main__":
@@ -41,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_x_name", type=str, default=DEFAULT_MODEL_X_NAME, help="Model X name or path")
     parser.add_argument("--num_prompts", type=int, default=DEFAULT_NUM_PROMPTS, help="Number of prompts to evaluate")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode with fewer prompts")
+    parser.add_argument("--output", type=str, default=DEFAULT_OUTPUT, help="Output file for results")
 
     args = parser.parse_args()
     main(args)
