@@ -10,30 +10,11 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 
 from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 
-# ----------------------------
-# Configuration
-# ----------------------------
-MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
-LANGS = ["en", "es", "de", "fr", "ar"]
-MAX_TOKENS = 50
+DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
+DEFAULT_LANGS = ["en", "es", "de", "fr", "ar"]
+DEFAULT_MAX_TOKENS = 50
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-# Debug subset settings
-DEBUG_MODE = True  # set to False for full dataset run
-DEBUG_MAX_EXAMPLES_PER_LANG = 10
-
-# ----------------------------
-# Load model & tokenizer
-# ----------------------------
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME).to(DEVICE)
-model.eval()
-
-# ----------------------------
-# Load MKQA dataset from Hugging Face
-# ----------------------------
-dataset = load_dataset("mkqa", trust_remote_code=True)
-print("MKQA dataset loaded:", dataset)
+DEBUG_MAX_EXAMPLES = 10
 
 
 # ----------------------------
@@ -63,12 +44,12 @@ def prepare_gold_annotations(dataset_split, lang):
     return annotations
 
 
-def generate_prediction(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt").to(DEVICE)
+def generate_prediction(prompt, tokenizer, model, device, max_tokens):
+    inputs = tokenizer(prompt, return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=MAX_TOKENS,
+            max_new_tokens=max_tokens,
             do_sample=False,
         )
     pred_text = tokenizer.decode(
@@ -77,12 +58,12 @@ def generate_prediction(prompt):
     return pred_text.strip()
 
 
-def prepare_predictions(dataset_split, lang):
+def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_tokens):
     predictions = {}
     for example in tqdm(dataset_split, desc=f"Generating predictions ({lang})"):
         # Use the actual MKQA question text
         prompt = f"Question ({lang}): {example['queries'][lang]} "
-        pred_text = generate_prediction(prompt)
+        pred_text = generate_prediction(prompt, tokenizer, model, device, max_tokens)
         predictions[str(example["example_id"])] = MKQAPrediction(
             example_id=str(example["example_id"]),
             prediction=pred_text,
@@ -92,32 +73,54 @@ def prepare_predictions(dataset_split, lang):
     return predictions
 
 
-# ----------------------------
-# Main evaluation loop
-# ----------------------------
-all_metrics = {}
-for lang in LANGS:
-    print(f"\nEvaluating language: {lang.upper()}")
-    dataset_split = dataset["train"]
-    if DEBUG_MODE:
-        dataset_split = dataset_split.select(
-            range(min(DEBUG_MAX_EXAMPLES_PER_LANG, len(dataset_split)))
+def main(args):
+    # Load model & tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name).to(args.device)
+    model.eval()
+
+    # Load MKQA dataset from Hugging Face
+    dataset = load_dataset("mkqa", trust_remote_code=True)
+    print("MKQA dataset loaded:", dataset)
+
+    # Main evaluation loop
+    all_metrics = {}
+    for lang in args.langs:
+        print(f"\nEvaluating language: {lang.upper()}")
+        dataset_split = dataset["train"]
+        if args.debug:
+            dataset_split = dataset_split.select(
+                range(min(DEBUG_MAX_EXAMPLES, len(dataset_split)))
+            )
+        gold_annotations = prepare_gold_annotations(dataset_split, lang)
+        predictions = prepare_predictions(dataset_split, lang, tokenizer, model, DEVICE, args.max_tokens)
+
+        metrics = evaluate(
+            annotations=gold_annotations,
+            predictions=predictions,
+            language=lang,
+            out_dir=f"results/{lang}",
+            verbose=False,
+            print_metrics=True,
         )
-    gold_annotations = prepare_gold_annotations(dataset_split, lang)
-    predictions = prepare_predictions(dataset_split, lang)
+        all_metrics[lang] = metrics
 
-    metrics = evaluate(
-        annotations=gold_annotations,
-        predictions=predictions,
-        language=lang,
-        out_dir=f"results/{lang}",
-        verbose=False,
-        print_metrics=True,
-    )
-    all_metrics[lang] = metrics
+    # Macro-average across languages
+    macro_em = sum(m["best_em"] for m in all_metrics.values()) / len(args.langs)
+    macro_f1 = sum(m["best_f1"] for m in all_metrics.values()) / len(args.langs)
+    print("\n=== Macro-Average MKQA ===")
+    print(f"Macro EM: {macro_em:.2f}, Macro F1: {macro_f1:.2f}")
 
-# Macro-average across languages
-macro_em = sum(m["best_em"] for m in all_metrics.values()) / len(LANGS)
-macro_f1 = sum(m["best_f1"] for m in all_metrics.values()) / len(LANGS)
-print(f"\n=== Macro-Average MKQA ===")
-print(f"Macro EM: {macro_em:.2f}, Macro F1: {macro_f1:.2f}")
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Evaluate MKQA question answering.")
+    parser.add_argument("--model_name", type=str, default=DEFAULT_MODEL_NAME, help="Model name or path")
+    parser.add_argument("--langs", nargs="+", default=DEFAULT_LANGS, help="Languages to evaluate")
+    parser.add_argument("--max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Max new tokens")
+    parser.add_argument("--debug", action="store_true", help="Run in debug mode with fewer examples")
+
+    args = parser.parse_args()
+
+    main(args)
