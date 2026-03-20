@@ -12,6 +12,10 @@ MAX_NEW_TOKENS = 128
 TEMP = 0.0
 ROUGE_SCRIPT_PATH = "./multilingual_rouge_scoring"  # path to XLSum repo script
 OUTPUT_CSV = "results-xlsum.csv"
+
+# Debug subset settings
+DEBUG_MODE = True  # set to False for full evaluation
+DEBUG_MAX_EXAMPLES_PER_LANG = 5
 # ================================
 
 # Load model
@@ -26,6 +30,9 @@ for lang in LANGS:
     print(f"Evaluating language: {lang}")
     dataset = load_dataset("csebuetnlp/xlsum", lang)
     test_split = dataset["validation"]
+    
+    if DEBUG_MODE:
+        test_split = test_split.select(range(min(DEBUG_MAX_EXAMPLES_PER_LANG, len(test_split))))
 
     # Create temporary files for references and predictions
     with tempfile.NamedTemporaryFile(
