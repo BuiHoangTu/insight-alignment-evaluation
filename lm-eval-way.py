@@ -1,37 +1,53 @@
-DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
-DEFAULT_OUTPUT_DIR = "../results"
-# DEFAULT_TASKS = "mgsm:fr|1"
-
-TASKS_PATH = "./lm-eval-tasks"
-
-
 import json
 from pathlib import Path
 
 import lm_eval
-from lm_eval.tasks import TaskManager, get_task_dict
+from lm_eval.tasks import TaskManager
 from lm_eval.models.huggingface import HFLM
 from lm_eval.utils import handle_non_serializable
 
 
-# Initialize model
-lm = HFLM(pretrained=DEFAULT_MODEL_NAME)  # type: ignore
+DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
+DEFAULT_OUTPUT_PATH = "results/results-lsm-eval.json"
 
-# Build task dictionary
-task_manager = TaskManager(include_path=TASKS_PATH)
+LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "sw", "ja", "vi", "tr", "it"]
+TASKS_BASE = ["mgsm_direct", "xcopa"]
 
-# Run evaluation
-results = lm_eval.simple_evaluate(
-    model=lm,
-    # task_manager=task_manager,
-    tasks=[
-        "mgsm_direct",
-        "xcopa",
-    ],
-    num_fewshot=2,
-    limit=100,
-)  # type: ignore
 
-(Path(DEFAULT_OUTPUT_DIR) / "results.json").write_text(
-    json.dumps(results, default=handle_non_serializable, indent=2)
+def main(args):
+    # Initialize model
+    lm = HFLM(pretrained=args.model_name)  # type: ignore
+
+    # Build task dictionary
+    task_manager = TaskManager()
+
+    # build tasks
+    tasks = [f"{task}:{lang}" for task in TASKS_BASE for lang in args.langs]
+
+    # verify tasks exist
+    tasks = task_manager.match_tasks(tasks)
+
+    # Run evaluation
+    results = lm_eval.simple_evaluate(
+        model=lm,
+        task_manager=task_manager,
+        tasks=tasks,
+        limit=100 if args.debug else None,
+        # num_fewshot=2,
+    )  # type: ignore
+
+    Path(args.output_path).write_text(
+        json.dumps(results, default=handle_non_serializable, indent=2)
 )
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Evaluate a model on multiple tasks.")
+    parser.add_argument("--model_name", type=str, default=DEFAULT_MODEL_NAME, help="Model name or path")
+    parser.add_argument("--output_path", type=str, default=DEFAULT_OUTPUT_PATH, help="Path to save results")
+    parser.add_argument("--langs", nargs="+", default=LANGS, help="List of languages to evaluate")
+    parser.add_argument("--debug", action="store_true", help="Run in debug mode with fewer examples")
+    args = parser.parse_args()
+
+    main(args)
