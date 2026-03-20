@@ -10,7 +10,7 @@ model_X_name = "your-username/model-X"
 
 dataset_name = "viyer98/m-AlpacaEval"
 split = "test"
-num_prompts = 100
+num_prompts = 5
 
 # ----------------------------
 # LOAD DATASET

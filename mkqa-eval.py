@@ -18,6 +18,10 @@ LANGS = ["en", "es", "de", "fr", "ar"]
 MAX_TOKENS = 50
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
+# Debug subset settings
+DEBUG_MODE = True  # set to False for full dataset run
+DEBUG_MAX_EXAMPLES_PER_LANG = 10
+
 # ----------------------------
 # Load model & tokenizer
 # ----------------------------
@@ -95,6 +99,10 @@ all_metrics = {}
 for lang in LANGS:
     print(f"\nEvaluating language: {lang.upper()}")
     dataset_split = dataset["train"]
+    if DEBUG_MODE:
+        dataset_split = dataset_split.select(
+            range(min(DEBUG_MAX_EXAMPLES_PER_LANG, len(dataset_split)))
+        )
     gold_annotations = prepare_gold_annotations(dataset_split, lang)
     predictions = prepare_predictions(dataset_split, lang)
 
