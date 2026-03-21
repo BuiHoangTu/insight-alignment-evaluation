@@ -60,19 +60,26 @@ def main(args):
 
             # Generate predictions
             for item in test_split:
-                
-                
-                
                 prompt = f"Summarize the following article in {lang}:\n{item['text']}\nSummary:"
                 inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(DEVICE)
+
+                inputs = tokenizer.apply_chat_template(
+                    [{"role": "user", "content": prompt}],
+                    tokenize=True,
+                    add_generation_prompt=True,
+                    return_tensors="pt"
+                ).to(DEVICE)
+
                 with torch.no_grad():
                     outputs = model.generate(
                         **inputs,
                         max_new_tokens=args.max_new_tokens,
                         do_sample=False,
                     )
-                summary = tokenizer.decode(outputs[0], skip_special_tokens=True)
-                pred_file.write(summary.strip() + "\n")
+                    
+                pred_token = outputs[0][inputs.input_ids.shape[1] :]
+                pred_text = tokenizer.decode(pred_token, skip_special_tokens=True)
+                pred_file.write(pred_text.strip() + "\n")
             pred_file.flush()
 
             # Run XLSum ROUGE CLI
