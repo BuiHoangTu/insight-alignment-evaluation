@@ -8,7 +8,7 @@ from lm_eval.utils import handle_non_serializable
 
 
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
-DEFAULT_OUTPUT_PATH = "results/results-lsm-eval.json"
+DEFAULT_OUTPUT_PATH = "results/results-lm-eval.json"
 
 LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "sw", "ja", "vi", "tr", "it"]
 TASKS_BASE = ["mgsm_direct", "xcopa"]
@@ -22,7 +22,7 @@ def main(args):
     task_manager = TaskManager()
 
     # build tasks
-    tasks = [f"{task}:{lang}" for task in TASKS_BASE for lang in args.langs]
+    tasks = [f"{task}_{lang}" for task in TASKS_BASE for lang in args.langs]
 
     # verify tasks exist
     tasks = task_manager.match_tasks(tasks)
