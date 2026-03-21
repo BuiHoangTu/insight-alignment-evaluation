@@ -11,7 +11,7 @@ from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "ja", "vi", "tr", "it"]  # , "sw"
-DEFAULT_MAX_TOKENS = 50
+DEFAULT_MAX_TOKENS = 2048
 DEFAULT_OUTPUT = "results/results-mkqa.json"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

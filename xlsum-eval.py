@@ -19,7 +19,7 @@ DEFAULT_LANGS = [
     "vietnamese",
     "turkish",
 ]
-DEFAULT_MAX_NEW_TOKENS = 128
+DEFAULT_MAX_NEW_TOKENS = 2048
 DEFAULT_OUTPUT = "results/results-xlsum.json"
 DEFAULT_CHECKPOINT_DIR = "./checkpoints"
 
