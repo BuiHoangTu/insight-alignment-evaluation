@@ -10,7 +10,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
-DEFAULT_LANGS = ["en", "es", "de", "fr", "ar"]
+DEFAULT_LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "ja", "vi", "tr", "it"]  # , "sw"
 DEFAULT_MAX_TOKENS = 50
 DEFAULT_OUTPUT = "results/results-mkqa.json"
 
@@ -45,26 +45,27 @@ def prepare_gold_annotations(dataset_split, lang):
     return annotations
 
 
-def generate_prediction(prompt, tokenizer, model, device, max_tokens):
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            do_sample=False,
-        )
-    pred_text = tokenizer.decode(
-        outputs[0][inputs.input_ids.shape[1] :], skip_special_tokens=True
-    )
-    return pred_text.strip()
-
-
 def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_tokens):
     predictions = {}
     for example in tqdm(dataset_split, desc=f"Generating predictions ({lang})"):
         # Use the actual MKQA question text
-        prompt = f"Question ({lang}): {example['queries'][lang]} "
-        pred_text = generate_prediction(prompt, tokenizer, model, device, max_tokens)
+        inputs = tokenizer.apply_chat_template(
+            [{"role": "user", "content": example["queries"][lang]}],
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt",
+        ).to(device)
+        
+        with torch.no_grad():
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_tokens
+            )
+            
+        pred_token = outputs[0][inputs.input_ids.shape[1] :]
+            
+        pred_text = tokenizer.decode(pred_token, skip_special_tokens=True)
+        
         predictions[str(example["example_id"])] = MKQAPrediction(
             example_id=str(example["example_id"]),
             prediction=pred_text,
@@ -77,7 +78,7 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
 def main(args):
     # Load model & tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    model = AutoModelForCausalLM.from_pretrained(args.model_name).to(args.device)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name).to(DEVICE)
     model.eval()
 
     # Load MKQA dataset from Hugging Face
