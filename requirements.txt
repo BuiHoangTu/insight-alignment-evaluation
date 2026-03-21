@@ -1,5 +1,11 @@
+numpy
 lm-eval
 evaluate
 datasets==3.6.0
 matplotlib
 alpaca-eval
+transformers
+torch
+accelerate
+peft
+vllm==0.11
