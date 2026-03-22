@@ -16,6 +16,7 @@ DEFAULT_OUTPUT = "results/results-mkqa.json"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 10
+ACTIVE_MAX_EXAMPLES = 1000
 
 
 # ----------------------------
@@ -47,7 +48,7 @@ def prepare_gold_annotations(dataset_split, lang):
 
 def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_tokens):
     predictions = {}
-    for example in tqdm(dataset_split, desc=f"Generating predictions ({lang})"):
+    for example in tqdm(dataset_split, desc=f"Generating predictions ({lang})", mininterval=50, maxinterval=300):
         # Use the actual MKQA question text
         inputs = tokenizer.apply_chat_template(
             [{"role": "user", "content": example["queries"][lang]}],
@@ -94,6 +95,10 @@ def main(args):
         if args.debug:
             dataset_split = dataset_split.select(
                 range(min(DEBUG_MAX_EXAMPLES, len(dataset_split)))
+            )
+        else:
+            dataset_split = dataset_split.select(
+                range(min(ACTIVE_MAX_EXAMPLES, len(dataset_split)))
             )
         gold_annotations = prepare_gold_annotations(dataset_split, lang)
         predictions = prepare_predictions(dataset_split, lang, tokenizer, model, DEVICE, args.max_tokens)
