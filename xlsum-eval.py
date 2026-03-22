@@ -6,7 +6,7 @@ from datasets import load_dataset
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-DEFAULT_MODEL_PATH = "../llama3_8b_lacomsa/checkpoint-94/"
+DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_LANGS = [
     "thai",
     "english",
@@ -19,7 +19,7 @@ DEFAULT_LANGS = [
     "vietnamese",
     "turkish",
 ]
-DEFAULT_MAX_NEW_TOKENS = 2048
+DEFAULT_MAX_NEW_TOKENS = 2048  #NOTE: update less token
 DEFAULT_OUTPUT = "results/results-xlsum.json"
 DEFAULT_CHECKPOINT_DIR = "./checkpoints"
 
@@ -29,8 +29,8 @@ DEBUG_MAX_EXAMPLES = 5
 
 def main(args):
     # Load model
-    tokenizer = AutoTokenizer.from_pretrained(args.model_path)
-    model = AutoModelForCausalLM.from_pretrained(args.model_path).to(DEVICE)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name).to(DEVICE)
     model.eval()
 
     results = []
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Evaluate XLSum summarization.")
-    parser.add_argument("--model_path", type=str, default=DEFAULT_MODEL_PATH, help="Model path")
+    parser.add_argument("--model_name", type=str, default=DEFAULT_MODEL_NAME, help="Model name")
     parser.add_argument("--langs", nargs="+", default=DEFAULT_LANGS, help="Languages to evaluate")
     parser.add_argument("--max_new_tokens", type=int, default=DEFAULT_MAX_NEW_TOKENS, help="Max new tokens")
     parser.add_argument("--output_path", type=str, default=DEFAULT_OUTPUT, help="Output JSON path")
