@@ -53,19 +53,20 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
             [{"role": "user", "content": example["queries"][lang]}],
             tokenize=True,
             add_generation_prompt=True,
+            return_dict=True,
             return_tensors="pt",
         ).to(device)
-        
+
         with torch.no_grad():
             outputs = model.generate(
                 **inputs,
                 max_new_tokens=max_tokens
             )
-            
+
         pred_token = outputs[0][inputs.input_ids.shape[1] :]
-            
+
         pred_text = tokenizer.decode(pred_token, skip_special_tokens=True)
-        
+
         predictions[str(example["example_id"])] = MKQAPrediction(
             example_id=str(example["example_id"]),
             prediction=pred_text,

@@ -61,12 +61,12 @@ def main(args):
             # Generate predictions
             for item in test_split:
                 prompt = f"Summarize the following article in {lang}:\n{item['text']}\nSummary:"
-                inputs = tokenizer(prompt, return_tensors="pt", truncation=True).to(DEVICE)
 
                 inputs = tokenizer.apply_chat_template(
                     [{"role": "user", "content": prompt}],
                     tokenize=True,
                     add_generation_prompt=True,
+                    return_dict=True,
                     return_tensors="pt"
                 ).to(DEVICE)
 
