@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 
 import torch
 from tqdm import tqdm
@@ -12,7 +13,7 @@ from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "ja", "vi", "tr", "it"]  # , "sw"
 DEFAULT_MAX_TOKENS = 2048
-DEFAULT_OUTPUT = "results/results-mkqa.json"
+DEFAULT_OUTPUT = "results"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 10
@@ -114,8 +115,9 @@ def main(args):
         all_metrics[lang] = metrics
 
     # save result
-    with open(args.output_path, "w") as f:
-        json.dump(all_metrics, f, indent=2)
+    (Path(args.output_path) / "results-mkqa.json").write_text(
+        json.dumps(all_metrics, indent=2)
+    )
 
     # Macro-average across languages
     macro_em = sum(m["best_em"] for m in all_metrics.values()) / len(args.langs)

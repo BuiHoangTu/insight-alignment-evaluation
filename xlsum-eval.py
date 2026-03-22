@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 from datasets import load_dataset
@@ -20,7 +21,7 @@ DEFAULT_LANGS = [
     "turkish",
 ]
 DEFAULT_MAX_NEW_TOKENS = 2048  #NOTE: update less token
-DEFAULT_OUTPUT = "results/results-xlsum.json"
+DEFAULT_OUTPUT = "results"
 DEFAULT_CHECKPOINT_DIR = "./checkpoints"
 
 ROUGE_SCRIPT_PATH = "./multilingual_rouge_scoring"
@@ -76,7 +77,7 @@ def main(args):
                         max_new_tokens=args.max_new_tokens,
                         do_sample=False,
                     )
-                    
+
                 pred_token = outputs[0][inputs.input_ids.shape[1] :]
                 pred_text = tokenizer.decode(pred_token, skip_special_tokens=True)
                 pred_file.write(pred_text.strip() + "\n")
@@ -114,8 +115,9 @@ def main(args):
             os.remove(temp_csv)
 
     # Save results
-    with open(args.output_path, "w", newline="", encoding="utf-8") as f_out:
-        json.dump(results, f_out)
+    (Path(args.output_path) / "results-xlsum.json").write_text(
+        json.dumps(results, indent=2)
+    )
 
     print(f"Evaluation complete! Results saved to {args.output_path}")
 

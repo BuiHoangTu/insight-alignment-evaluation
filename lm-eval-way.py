@@ -8,7 +8,7 @@ from lm_eval.utils import handle_non_serializable
 
 
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
-DEFAULT_OUTPUT_PATH = "results/results-lm-eval.json"
+DEFAULT_OUTPUT_PATH = "results"
 
 LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "sw", "ja", "vi", "tr", "it"]
 TASKS_BASE = ["mgsm_direct", "xcopa"]
@@ -32,11 +32,12 @@ def main(args):
         model=lm,
         task_manager=task_manager,
         tasks=tasks,
+        model_args="parallelize=True",
         limit=100 if args.debug else None,
         # num_fewshot=2,
     )  # type: ignore
 
-    Path(args.output_path).write_text(
+    (Path(args.output_path) / "results-lm-eval.json").write_text(
         json.dumps(results, default=handle_non_serializable, indent=2)
 )
 
