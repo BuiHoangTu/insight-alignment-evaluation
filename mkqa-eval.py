@@ -114,7 +114,7 @@ def main(args):
         all_metrics[lang] = metrics
 
     # save result
-    with open(args.output, "w") as f:
+    with open(args.output_path, "w") as f:
         json.dump(all_metrics, f, indent=2)
 
     # Macro-average across languages
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     parser.add_argument("--langs", nargs="+", default=DEFAULT_LANGS, help="Languages to evaluate")
     parser.add_argument("--max_tokens", type=int, default=DEFAULT_MAX_TOKENS, help="Max new tokens")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode with fewer examples")
-    parser.add_argument("--output", type=str, default=DEFAULT_OUTPUT, help="Output file for results")
+    parser.add_argument("--output_path", type=str, default=DEFAULT_OUTPUT, help="Output file for results")
 
     args = parser.parse_args()
 
