@@ -16,15 +16,21 @@ if [ -z "$evaluate_model" ]; then
   exit 1
 fi
 
-echo "Evaluating model: $evaluate_model"
+# Read $2 default to "results"
+output_dir=${2:-results}
+
+# Create the directory if it does not exist
+mkdir -p "$output_dir"
+
+echo "Evaluating model: $evaluate_model and saving results to: $output_dir"
 
 # (Optional) activate conda if needed
 source ~/micromamba/etc/profile.d/conda.sh
 conda activate alignment-eval
 
-python lm-eval-way.py --model_name $evaluate_model
-python mkqa-eval.py --model_name $evaluate_model
-python xlsum-eval.py --model_name $evaluate_model
+python lm-eval-way.py --model_name $evaluate_model --output_path $output_dir
+python mkqa-eval.py --model_name $evaluate_model --output_path $output_dir
+python xlsum-eval.py --model_name $evaluate_model --output_path $output_dir
 
 ## setup for xalpaca evaluation
 # link libcuda.so.1 to libcuda.so
@@ -43,7 +49,8 @@ sed "s|/insight-fast/hbui/projects/llama3_8b_lacomsa/checkpoint-94|${evaluate_mo
 
 ## run alpaca evaluation
 alpaca_eval evaluate_from_model $CONFIG_FILE \
-  --annotators_config=$(pwd)/xalpaca-configs/local-annotators.yaml
+  --annotators_config=$(pwd)/xalpaca-configs/local-annotators.yaml \
+  --output_path=$output_dir
 
 rm $CONFIG_FILE
 
