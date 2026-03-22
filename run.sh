@@ -7,16 +7,24 @@
 #SBATCH --time=1600:00:00
 
 #SBATCH --job-name=eval
-#SBATCH --output=run-debug-xalpaca.log
+#SBATCH --output=run.log
+
+# read args
+evaluate_model=$1
+if [ -z "$evaluate_model" ]; then
+  echo "Usage: $0 <evaluate_model>"
+  exit 1
+fi
+
+echo "Evaluating model: $evaluate_model"
 
 # (Optional) activate conda if needed
 source ~/micromamba/etc/profile.d/conda.sh
 conda activate alignment-eval
 
-export CUDA_VISIBLE_DEVICES=1,2
-# python lm-eval-way.py --langs en th --debug
-# python mkqa-eval.py --langs en th --debug
-# python xlsum-eval.py --langs english thai --debug
+python lm-eval-way.py --model_name $evaluate_model
+python mkqa-eval.py --model_name $evaluate_model
+python xlsum-eval.py --model_name $evaluate_model
 
 ## setup for xalpaca evaluation
 # link libcuda.so.1 to libcuda.so
@@ -27,9 +35,16 @@ fi
 export LD_LIBRARY_PATH=$HOME/libcuda_shim:$LD_LIBRARY_PATH
 export LIBRARY_PATH=$HOME/libcuda_shim:/usr/lib/x86_64-linux-gnu:$LIBRARY_PATH
 
-alpaca_eval evaluate_from_model $(pwd)/xalpaca-configs/lacomsa.yaml \
-  --annotators_config=$(pwd)/xalpaca-configs/local-annotators.yaml \
-  --max_instances=10
+# create yaml file for the model
+$SOURCE_CONFIG=$(pwd)/xalpaca-configs/lacomsa.yaml
+$CONFIG_FILE="$(mktemp)"
+# replace the checkpoint path in the yaml file
+sed "s|/insight-fast/hbui/projects/llama3_8b_lacomsa/checkpoint-94|${evaluate_model}|g" "$SOURCE_CONFIG" > "$CONFIG_FILE"
 
+## run alpaca evaluation
+alpaca_eval evaluate_from_model $CONFIG_FILE \
+  --annotators_config=$(pwd)/xalpaca-configs/local-annotators.yaml
+
+rm $CONFIG_FILE
 
 echo "Evaluation is completed."
