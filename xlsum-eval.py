@@ -20,18 +20,21 @@ DEFAULT_LANGS = [
     "vietnamese",
     "turkish",
 ]
-DEFAULT_MAX_NEW_TOKENS = 2048  #NOTE: update less token
+DEFAULT_MAX_NEW_TOKENS = 2048  #NOTE: update less token?
 DEFAULT_OUTPUT = "results"
 DEFAULT_CHECKPOINT_DIR = "./checkpoints"
 
 ROUGE_SCRIPT_PATH = "./multilingual_rouge_scoring"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 5
+BATCH_SIZE = 64
 
 def main(args):
     # Load model
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = AutoModelForCausalLM.from_pretrained(args.model_name).to(DEVICE)
+
+    tokenizer.padding_side = "left"
     model.eval()
 
     results = []
@@ -59,28 +62,50 @@ def main(args):
                 ref_file.write(item["summary"].strip() + "\n")
             ref_file.flush()
 
-            # Generate predictions
-            for item in test_split:
-                prompt = f"Summarize the following article in {lang}:\n{item['text']}\nSummary:"
+            # Generate predictions in batches
+            for i in range(0, len(test_split), BATCH_SIZE):
+                batch = test_split[i : i + BATCH_SIZE]
 
-                inputs = tokenizer.apply_chat_template(
-                    [{"role": "user", "content": prompt}],
-                    tokenize=True,
-                    add_generation_prompt=True,
-                    return_dict=True,
-                    return_tensors="pt"
+                # Format each example as a separate chat conversation
+                batch_conversations = [
+                    [{"role": "user", "content": f"Summarize the following article in {lang}:\n{item['text']}\nSummary:"}] for item in batch
+                ]
+
+                # Apply chat template
+                formatted_batch = [
+                    tokenizer.apply_chat_template(
+                        conv, 
+                        tokenize=False, 
+                        add_generation_prompt=True,
+                    )
+                    for conv in batch_conversations
+                ]
+
+                # Tokenize the batch with padding
+                tokenized_batch = tokenizer(
+                    formatted_batch,
+                    padding="longest",  # pad to max length in this batch
+                    truncation=True,  # truncate if too long
+                    return_tensors="pt",
                 ).to(DEVICE)
 
+                # Generate predictions
                 with torch.no_grad():
                     outputs = model.generate(
-                        **inputs,
+                        **tokenized_batch,
                         max_new_tokens=args.max_new_tokens,
                         do_sample=False,
                     )
 
-                pred_token = outputs[0][inputs.input_ids.shape[1] :]
-                pred_text = tokenizer.decode(pred_token, skip_special_tokens=True)
-                pred_file.write(pred_text.strip() + "\n")
+                # Decode predictions, removing the input prompt
+                input_lengths = tokenized_batch["input_ids"].shape[1]
+                generated_tokens = [out[input_lengths:] for out in outputs]
+
+                pred_texts = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
+
+                # Write predictions
+                for pred_text in pred_texts:
+                    pred_file.write(pred_text.strip() + "\n")
             pred_file.flush()
 
             # Run XLSum ROUGE CLI

@@ -18,6 +18,7 @@ DEFAULT_OUTPUT = "results"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 10
 ACTIVE_MAX_EXAMPLES = 1000
+BATCH_SIZE = 64
 
 
 # ----------------------------
@@ -41,40 +42,70 @@ def prepare_gold_annotations(dataset_split, lang):
         annotations[annotation.example_id] = annotation
 
     if len(annotations) != 10000:
-            logging.warning(
-                f"The annotations file you've provided contains {len(annotations)} for language {lang} examples, where 10000 are expected."
-            )
+        logging.warning(
+            f"The annotations file you've provided contains {len(annotations)} for language {lang} examples, where 10000 are expected."
+        )
     return annotations
 
 
 def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_tokens):
+    """
+    Generate predictions in batches with padding for efficient inference.
+    """
     predictions = {}
-    for example in tqdm(dataset_split, desc=f"Generating predictions ({lang})", mininterval=50, maxinterval=300):
-        # Use the actual MKQA question text
-        inputs = tokenizer.apply_chat_template(
-            [{"role": "user", "content": example["queries"][lang]}],
-            tokenize=True,
-            add_generation_prompt=True,
-            return_dict=True,
+    for i in tqdm(
+        range(0, len(dataset_split), BATCH_SIZE),
+        desc=f"Generating predictions ({lang})",
+        mininterval=50,
+        maxinterval=300,
+    ):
+        batch = dataset_split[i : i + BATCH_SIZE]
+
+        # Format each example as a separate chat conversation
+        batch_conversations = [
+            [{"role": "user", "content": example["queries"][lang]}] for example in batch
+        ]
+
+        # Apply chat template
+        formatted_batch = [
+            tokenizer.apply_chat_template(
+                conv, 
+                tokenize=False, 
+                add_generation_prompt=True,
+            )
+            for conv in batch_conversations
+        ]
+
+        # Tokenize the batch with padding
+        tokenized_batch = tokenizer(
+            formatted_batch,
+            padding="longest",  # pad to max length in this batch
+            truncation=True,  # truncate if too long
             return_tensors="pt",
         ).to(device)
 
+        # Step 4: Generate predictions
         with torch.no_grad():
             outputs = model.generate(
-                **inputs,
-                max_new_tokens=max_tokens
+                **tokenized_batch,
+                max_new_tokens=max_tokens,
+                num_return_sequences=1
             )
 
-        pred_token = outputs[0][inputs.input_ids.shape[1] :]
+        # Step 5: Decode predictions, removing the input prompt
+        input_lengths = tokenized_batch["input_ids"].shape[1]
+        generated_tokens = [out[input_lengths:] for out in outputs]
 
-        pred_text = tokenizer.decode(pred_token, skip_special_tokens=True)
+        pred_texts = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
 
-        predictions[str(example["example_id"])] = MKQAPrediction(
-            example_id=str(example["example_id"]),
-            prediction=pred_text,
-            binary_answer=None,
-            no_answer_prob=0.0,
-        )
+        for example, pred_text in zip(batch, pred_texts):
+            predictions[str(example["example_id"])] = MKQAPrediction(
+                example_id=str(example["example_id"]),
+                prediction=pred_text,
+                binary_answer=None,
+                no_answer_prob=0.0,
+            )
+
     return predictions
 
 
@@ -82,6 +113,8 @@ def main(args):
     # Load model & tokenizer
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = AutoModelForCausalLM.from_pretrained(args.model_name).to(DEVICE)
+
+    tokenizer.padding_side = "left"
     model.eval()
 
     # Load MKQA dataset from Hugging Face
