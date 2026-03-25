@@ -32,6 +32,7 @@ def main(args):
         model=lm,
         task_manager=task_manager,
         tasks=tasks,
+        apply_chat_template=True,
         model_args="parallelize=True",
         limit=100 if args.debug else None,
         # num_fewshot=2,
