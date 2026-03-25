@@ -7,5 +7,7 @@ setuptools
 .vscode
 
 # output
-/results/
+/results*/
 /checkpoints/
+
+test.*
