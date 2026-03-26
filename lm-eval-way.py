@@ -33,6 +33,9 @@ def main(args):
         task_manager=task_manager,
         tasks=tasks,
         apply_chat_template=True,
+        gen_kwargs={
+            "until": ["<|eot_id|>"],
+        },
         model_args="parallelize=True",
         limit=100 if args.debug else None,
         # num_fewshot=2,
