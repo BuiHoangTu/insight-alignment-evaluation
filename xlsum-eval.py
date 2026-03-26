@@ -20,14 +20,14 @@ DEFAULT_LANGS = [
     "vietnamese",
     "turkish",
 ]
-DEFAULT_MAX_NEW_TOKENS = 2048  #NOTE: update less token?
+DEFAULT_MAX_NEW_TOKENS = 128  #NOTE: update less token?
 DEFAULT_OUTPUT = "results"
 DEFAULT_CHECKPOINT_DIR = "./checkpoints"
 
 ROUGE_SCRIPT_PATH = "./multilingual_rouge_scoring"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 5
-BATCH_SIZE = 64
+BATCH_SIZE = 16
 
 def main(args):
     # Load model

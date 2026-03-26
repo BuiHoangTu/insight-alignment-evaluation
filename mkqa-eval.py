@@ -12,13 +12,13 @@ from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "ja", "vi", "tr", "it"]  # , "sw"
-DEFAULT_MAX_TOKENS = 2048
+DEFAULT_MAX_TOKENS = 128
 DEFAULT_OUTPUT = "results"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 10
 ACTIVE_MAX_EXAMPLES = 1000
-BATCH_SIZE = 64
+BATCH_SIZE = 16
 
 
 # ----------------------------
@@ -98,9 +98,9 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
 
         pred_texts = tokenizer.batch_decode(generated_tokens, skip_special_tokens=True)
 
-        for example, pred_text in zip(batch, pred_texts):
-            predictions[str(example["example_id"])] = MKQAPrediction(
-                example_id=str(example["example_id"]),
+        for example_id, pred_text in zip(batch["example_id"], pred_texts):
+            predictions[str(example_id)] = MKQAPrediction(
+                example_id=str(example_id),
                 prediction=pred_text,
                 binary_answer=None,
                 no_answer_prob=0.0,
