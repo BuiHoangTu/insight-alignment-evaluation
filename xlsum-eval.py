@@ -68,7 +68,7 @@ def main(args):
 
                 # Format each example as a separate chat conversation
                 batch_conversations = [
-                    [{"role": "user", "content": f"Summarize the following article in {lang}:\n{item['text']}\nSummary:"}] for item in batch
+                    [{"role": "user", "content": f"Summarize the following article in {lang}:\n{item}\nSummary:"}] for item in batch['text']
                 ]
 
                 # Apply chat template

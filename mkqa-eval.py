@@ -63,7 +63,7 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
 
         # Format each example as a separate chat conversation
         batch_conversations = [
-            [{"role": "user", "content": example["queries"][lang]}] for example in batch
+            [{"role": "user", "content": example[lang]}] for example in batch["queries"]
         ]
 
         # Apply chat template
