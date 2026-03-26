@@ -27,7 +27,7 @@ DEFAULT_CHECKPOINT_DIR = "./checkpoints"
 ROUGE_SCRIPT_PATH = "./multilingual_rouge_scoring"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 5
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 
 def main(args):
     # Load model
@@ -122,17 +122,21 @@ def main(args):
                 "--use_stemmer=false",
                 f"--lang={lang}",
             ]
-            subprocess.run(cmd, cwd=ROUGE_SCRIPT_PATH, check=True)
+            p = subprocess.run(cmd, cwd=ROUGE_SCRIPT_PATH, check=False)
+            
+            if p.returncode != 0:
+                print(f"Error running ROUGE for {lang}. Return code: {p.returncode}")
+            else:
 
-            # Extract ROUGE-L F1
-            rouge_l_f = 0.0
-            with open(temp_csv, "r", encoding="utf-8") as f:
-                for line in f:
-                    if "rougeL" in line.lower() and "f" in line.lower():
-                        rouge_l_f = float(line.strip().split(",")[-1])
-                        break
+                # Extract ROUGE-L F1
+                rouge_l_f = 0.0
+                with open(temp_csv, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if "rougeL" in line.lower() and "f" in line.lower():
+                            rouge_l_f = float(line.strip().split(",")[-1])
+                            break
 
-            results.append((lang, rouge_l_f))
+                results.append((lang, rouge_l_f))
 
             # Remove temporary files
             # os.remove(ref_path)
@@ -144,7 +148,7 @@ def main(args):
         json.dumps(results, indent=2)
     )
 
-    print(f"Evaluation complete! Results saved to {args.output_path}")
+    print(f"XLSum complete! Results saved to {args.output_path}")
 
 if __name__ == "__main__":
     import argparse
