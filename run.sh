@@ -42,8 +42,8 @@ export LD_LIBRARY_PATH=$HOME/libcuda_shim:$LD_LIBRARY_PATH
 export LIBRARY_PATH=$HOME/libcuda_shim:/usr/lib/x86_64-linux-gnu:$LIBRARY_PATH
 
 # create yaml file for the model
-$SOURCE_CONFIG=$(pwd)/xalpaca-configs/lacomsa.yaml
-$CONFIG_FILE="$(mktemp)"
+SOURCE_CONFIG=$(pwd)/xalpaca-configs/lacomsa.yaml
+CONFIG_FILE="$(mktemp)"
 # replace the checkpoint path in the yaml file
 sed "s|/insight-fast/hbui/projects/llama3_8b_lacomsa/checkpoint-94|${evaluate_model}|g" "$SOURCE_CONFIG" > "$CONFIG_FILE"
 
