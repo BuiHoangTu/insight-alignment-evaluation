@@ -11,7 +11,19 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
 
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
-DEFAULT_LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "ja", "vi", "tr", "it"]  # , "sw"
+DEFAULT_LANGS = [
+    "en",
+    "de",
+    "ru",
+    "es",
+    "fr",
+    "th",
+    "zh_cn",
+    "ja",
+    "vi",
+    "tr",
+    "it",
+]  # , "sw"
 DEFAULT_MAX_TOKENS = 128
 DEFAULT_OUTPUT = "results"
 
@@ -89,7 +101,8 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
             outputs = model.generate(
                 **tokenized_batch,
                 max_new_tokens=max_tokens,
-                num_return_sequences=1
+                num_return_sequences=1,
+                do_sample=False,
             )
 
         # Step 5: Decode predictions, removing the input prompt
@@ -141,7 +154,7 @@ def main(args):
             annotations=gold_annotations,
             predictions=predictions,
             language=lang,
-            out_dir=f"results/{lang}",
+            out_dir=f"{args.output_path}/{lang}",
             verbose=False,
             print_metrics=True,
         )
