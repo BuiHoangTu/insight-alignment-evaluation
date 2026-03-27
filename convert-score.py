@@ -27,7 +27,7 @@ def read_score(results_path):
     result_lm_eval = j_lm_eval["results"]
 
     # Define languages and tasks
-    LANGS = ["en", "de", "ru", "es", "fr", "th", "zh", "sw", "ja", "vi", "tr", "it"]
+    LANGS = ["th", "en", "de", "ru", "es", "zh", "sw", "fr", "ja", "vi", "tr", "it"]
     TASKS = ["mgsm_direct", "xcopa"]
 
     # Create DataFrame
@@ -55,7 +55,7 @@ def read_score(results_path):
     for lang, metrics in j_mkqa.items():
         if lang == "zh_cn":
             lang = "zh"
-        df.loc[lang, "mkqa"] = metrics["best_f1"]
+        df.loc[lang, "mkqa"] = float(metrics["best_f1"]) / 100
 
     return df
 
