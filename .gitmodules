@@ -1,0 +1,3 @@
+[submodule "xalpaca"]
+	path = xalpaca
+	url = https://github.com/ZNLP/Implicit-Cross-Lingual-Rewarding.git
