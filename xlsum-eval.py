@@ -49,9 +49,9 @@ def main(args):
 
         # Create temporary files for references and predictions
         with tempfile.NamedTemporaryFile(
-            mode="w+", delete=False, encoding="utf-8", dir=args.checkpoint_dir
+            mode="w+", delete=False, encoding="utf-8", dir=args.checkpoint_dir, prefix=f"refs_{lang}_"
         ) as ref_file, tempfile.NamedTemporaryFile(
-            mode="w+", delete=False, encoding="utf-8", dir=args.checkpoint_dir
+            mode="w+", delete=False, encoding="utf-8", dir=args.checkpoint_dir, prefix=f"preds_{lang}_"
         ) as pred_file:
 
             ref_path = ref_file.name
@@ -105,7 +105,7 @@ def main(args):
 
                 # Write predictions
                 for pred_text in pred_texts:
-                    pred_file.write(pred_text.strip() + "\n")
+                    pred_file.write(pred_text.strip().replace("\n", "\\n") + "\n")
             pred_file.flush()
 
             # Run XLSum ROUGE CLI
@@ -123,7 +123,7 @@ def main(args):
                 f"--lang={lang}",
             ]
             p = subprocess.run(cmd, cwd=ROUGE_SCRIPT_PATH, check=False)
-            
+
             if p.returncode != 0:
                 print(f"Error running ROUGE for {lang}. Return code: {p.returncode}")
             else:
@@ -132,7 +132,7 @@ def main(args):
                 rouge_l_f = 0.0
                 with open(temp_csv, "r", encoding="utf-8") as f:
                     for line in f:
-                        if "rougeL" in line.lower() and "f" in line.lower():
+                        if "rougel" in line.lower() and "f" in line.lower():
                             rouge_l_f = float(line.strip().split(",")[-1])
                             break
 
