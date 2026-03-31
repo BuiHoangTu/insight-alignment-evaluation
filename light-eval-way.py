@@ -1,14 +1,44 @@
-import lighteval
-from lighteval.logging.evaluation_tracker import EvaluationTracker
-from lighteval.pipeline import ParallelismManager, Pipeline, PipelineParameters
-from lighteval.utils.imports import is_package_available
-
-
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_MODEL_TYPE = "transformer"
 DEFAULT_OUTPUT_DIR = "../results"
-DEFAULT_TASKS = "mgsm:fr|1"
+DEFAULT_LANGS = [
+    "tha",
+    "eng",
+    "deu",
+    "rus",
+    "spa",
+    "zho",
+    # "swa",
+    "fra",
+    "jpn",
+    "vie",
+    "tur",
+    "ita",
+]
+DEFAULT_TASKS = [f"mkqa_{lang}:short_phrase" for lang in DEFAULT_LANGS] + [  # subset
+    f"mkqa_{lang}" for lang in DEFAULT_LANGS
+]  # full dataset
 
+def override_load_dataset_for_mkqa():
+    from datasets import load_dataset
+
+    original = load_dataset
+
+    def patched_load_dataset(*args, **kwargs):
+        kwargs.setdefault("trust_remote_code", True)
+        return original(*args, **kwargs)
+
+    import datasets
+
+    datasets.load_dataset = patched_load_dataset
+
+if __name__ == "__main__":
+    override_load_dataset_for_mkqa()
+
+
+from lighteval.logging.evaluation_tracker import EvaluationTracker
+from lighteval.pipeline import ParallelismManager, Pipeline, PipelineParameters
+from lighteval.utils.imports import is_package_available
 
 # with launcher_type=ParallelismManager.ACCELERATE below, accelerate will be configed automatically,
 # these lines of code are either for reconfiguring or is legacy.
@@ -19,9 +49,10 @@ if is_package_available("accelerate"):
 else:
     accelerator = None
 
+
 def main(args):
     evaluation_tracker = EvaluationTracker(
-        output_dir=args.output_dir,
+        output_dir=args.output_path,
         save_details=True,
         push_to_hub=False,
         # hub_results_org="your_username",  # Replace with your actual username
@@ -29,9 +60,10 @@ def main(args):
 
     pipeline_params = PipelineParameters(
         launcher_type=ParallelismManager.ACCELERATE,
+        load_tasks_multilingual=True,
         custom_tasks_directory=None,  # Set to path if using custom tasks
         # Remove the parameter below once your configuration is tested
-        max_samples=20,
+        # max_samples=20,
     )
 
     if args.model_type == "transformer":
@@ -39,14 +71,13 @@ def main(args):
 
         model_config = TransformersModelConfig(
             model_name=args.model_name,
-            dtype="float16",
+            # dtype="float16",
         )
     else:
         raise ValueError(f"Unsupported model type: {args.model_type}")
 
-
     pipeline = Pipeline(
-        tasks=args.tasks,
+        tasks=",".join(args.tasks),
         pipeline_parameters=pipeline_params,
         evaluation_tracker=evaluation_tracker,
         model_config=model_config,
@@ -62,8 +93,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate a language model on a set of tasks.")
     parser.add_argument("--model_type", type=str, default=DEFAULT_MODEL_TYPE, help="Type of model to evaluate (e.g., 'transformer', 'vllm').")
     parser.add_argument("--model_name", type=str, default=DEFAULT_MODEL_NAME, help="Model name or path to evaluate.")
-    parser.add_argument("--output_dir", type=str, default=DEFAULT_OUTPUT_DIR, help="Output directory for results.")
-    parser.add_argument("--tasks", type=str, default=DEFAULT_TASKS, help="Tasks to evaluate.")
+    parser.add_argument("--output_path", type=str, default=DEFAULT_OUTPUT_DIR, help="Output directory for results.")
+    parser.add_argument("--tasks", nargs="+", type=str, default=DEFAULT_TASKS, help="Tasks to evaluate.")
 
     args = parser.parse_args()
     

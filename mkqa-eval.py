@@ -8,7 +8,8 @@ from datasets import load_dataset
 
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
-from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction
+from mkqa_eval.mkqa_eval import evaluate, MKQAAnnotation, MKQAPrediction, read_predictions
+from mkqa_eval.mkqa_save import save_predictions
 
 DEFAULT_MODEL_NAME = "../llama3_8b_lacomsa/checkpoint-94/"
 DEFAULT_LANGS = [
@@ -31,6 +32,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DEBUG_MAX_EXAMPLES = 10
 ACTIVE_MAX_EXAMPLES = 1000
 BATCH_SIZE = 16
+CHECKPOINT_DIR = "./checkpoints"
 
 
 # ----------------------------
@@ -64,6 +66,15 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
     """
     Generate predictions in batches with padding for efficient inference.
     """
+    
+    # build the cache of predictions
+    model_name = model.config._name_or_path.split("/")[-1]
+    path = Path(CHECKPOINT_DIR) / f"mkqa_{model_name}_{max_tokens}" / f"predictions_{lang}.json"
+    
+    if path.exists():
+        logging.info(f"Loading cached predictions from {path}")
+        return read_predictions(str(path))
+    
     predictions = {}
     for i in tqdm(
         range(0, len(dataset_split), BATCH_SIZE),
@@ -75,7 +86,13 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
 
         # Format each example as a separate chat conversation
         batch_conversations = [
-            [{"role": "user", "content": example[lang]}] for example in batch["queries"]
+            [
+                {
+                    "role": "user",
+                    "content": f"Answer the following question in {lang}. Only answer the question. Any extra text will be considered incorrect. numeric answer is prefered: {example[lang]}",
+                }
+            ]
+            for example in batch["queries"]
         ]
 
         # Apply chat template
@@ -118,6 +135,8 @@ def prepare_predictions(dataset_split, lang, tokenizer, model, device, max_token
                 binary_answer=None,
                 no_answer_prob=0.0,
             )
+
+    save_predictions(str(path), predictions)
 
     return predictions
 
