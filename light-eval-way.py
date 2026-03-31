@@ -15,9 +15,11 @@ DEFAULT_LANGS = [
     "tur",
     "ita",
 ]
-DEFAULT_TASKS = [f"mkqa_{lang}:short_phrase" for lang in DEFAULT_LANGS] + [  # subset
+DEFAULT_TASKS = [  # subset
+    f"mkqa_{lang}:short_phrase" for lang in DEFAULT_LANGS
+] + [  # full dataset
     f"mkqa_{lang}" for lang in DEFAULT_LANGS
-]  # full dataset
+]
 
 def override_load_dataset_for_mkqa():
     from datasets import load_dataset
@@ -63,7 +65,7 @@ def main(args):
         load_tasks_multilingual=True,
         custom_tasks_directory=None,  # Set to path if using custom tasks
         # Remove the parameter below once your configuration is tested
-        # max_samples=20,
+        # max_samples=10000,
     )
 
     if args.model_type == "transformer":
@@ -71,7 +73,7 @@ def main(args):
 
         model_config = TransformersModelConfig(
             model_name=args.model_name,
-            # dtype="float16",
+            dtype="bfloat16",
         )
     else:
         raise ValueError(f"Unsupported model type: {args.model_type}")
