@@ -2,12 +2,12 @@
 #SBATCH --partition=insight
 #SBATCH --nodes=1
 #SBATCH --nodelist=node001
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=3
 #SBATCH --time=1600:00:00
 
 #SBATCH --job-name=eval
-#SBATCH --output=run.log
+#SBATCH --output=run-alpaca.log
 
 # read args
 evaluate_model=$1
@@ -28,12 +28,8 @@ echo "Evaluating model: $evaluate_model and saving results to: $output_dir"
 source ~/micromamba/etc/profile.d/conda.sh
 conda activate alignment-eval
 
-python lm-eval-way.py --model_name $evaluate_model --output_path $output_dir
-python mkqa-eval.py --model_name $evaluate_model --output_path $output_dir
-python xlsum-eval.py --model_name $evaluate_model --output_path $output_dir
-
-## setup for xalpaca evaluation
-# link libcuda.so.1 to libcuda.so
+# setup for xalpaca evaluation
+link libcuda.so.1 to libcuda.so
 if [ ! -f "$HOME/libcuda_shim/libcuda.so" ]; then
     mkdir -p $HOME/libcuda_shim
     ln -s /usr/lib/x86_64-linux-gnu/libcuda.so.1 $HOME/libcuda_shim/libcuda.so
