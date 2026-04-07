@@ -22,6 +22,12 @@ cd multilingual_rouge_scoring
 pip3 install -r requirements.txt
 python3 -m unidic download # for japanese segmentation
 pip3 install --upgrade ./
+cd ..
+
+# install xalpaca
+cd xalpaca
+pip3 install -r requirements.txt
+cd ..
 
 
 echo "Setup is completed."

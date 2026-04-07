@@ -1,9 +1,0 @@
-lacomsa:
-  prompt_template: /insight-fast/hbui/projects/alignment-eval/xalpaca-configs/model-template.txt
-  fn_completions: "huggingface_local_completions"
-  completions_kwargs:
-    model_name: /insight-fast/hbui/projects/llama3_8b_lacomsa/checkpoint-94
-  pretty_name: "Lacomsa"
-
-
-  

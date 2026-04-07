@@ -31,7 +31,8 @@ export LIBRARY_PATH=$HOME/libcuda_shim:/usr/lib/x86_64-linux-gnu:$LIBRARY_PATH
 cd xalpaca
 output_dir="../checkpoints/x-alpacaeval/${evaluate_model##*/}"
 
-conda run -n alignment-eval bash scripts/batch_inference_for_xalpacaeval.sh \
+conda activate alignment-eval
+bash scripts/batch_inference_for_xalpacaeval.sh \
   dummy_device \
   "bn de en es fr ru sw th zh" \
   dummy_dataset \

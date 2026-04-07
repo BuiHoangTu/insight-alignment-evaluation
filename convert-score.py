@@ -61,6 +61,6 @@ def read_score(results_path):
 
 
 if __name__ == "__main__":
-    results_path = Path("./results")
+    results_path = Path("./results-org-model")
     df = read_score(results_path)
     print(df)

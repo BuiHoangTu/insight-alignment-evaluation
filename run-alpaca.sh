@@ -21,12 +21,7 @@ output_dir=${2:-results}
 
 # Create the directory if it does not exist
 mkdir -p "$output_dir"
-
 echo "Evaluating model: $evaluate_model and saving results to: $output_dir"
-
-# (Optional) activate conda if needed
-source ~/micromamba/etc/profile.d/conda.sh
-conda activate alignment-eval
 
 # setup for xalpaca evaluation
 link libcuda.so.1 to libcuda.so
@@ -43,8 +38,11 @@ CONFIG_FILE="$(mktemp)"
 # replace the checkpoint path in the yaml file
 sed "s|/insight-fast/hbui/projects/llama3_8b_lacomsa/checkpoint-94|${evaluate_model}|g" "$SOURCE_CONFIG" > "$CONFIG_FILE"
 
+# (Optional) activate conda if needed
+source ~/micromamba/etc/profile.d/conda.sh
+
 ## run alpaca evaluation
-alpaca_eval evaluate_from_model $CONFIG_FILE \
+conda run -n alignment-eval alpaca_eval evaluate_from_model $CONFIG_FILE \
   --annotators_config=$(pwd)/xalpaca-configs/local-annotators.yaml \
   --output_path=$output_dir
 
