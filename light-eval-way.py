@@ -38,6 +38,8 @@ if __name__ == "__main__":
     override_load_dataset_for_mkqa()
 
 
+from pathlib import Path
+
 from lighteval.logging.evaluation_tracker import EvaluationTracker
 from lighteval.pipeline import ParallelismManager, Pipeline, PipelineParameters
 from lighteval.utils.imports import is_package_available
@@ -53,8 +55,9 @@ else:
 
 
 def main(args):
+    output_dir = Path(args.output_path) / "light-eval"
     evaluation_tracker = EvaluationTracker(
-        output_dir=args.output_path,
+        output_dir=str(output_dir),
         save_details=True,
         push_to_hub=False,
         # hub_results_org="your_username",  # Replace with your actual username
